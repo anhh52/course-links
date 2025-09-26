@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quản lý link tài liệu môn học</title>
+  <style>
+    :root { --bg:#0b1220; --panel:#121a2b; --panel-2:#0f1730; --text:#e8eefc; --muted:#97a3b6; --accent:#4f8cff; --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444; }
+    * { box-sizing: border-box; }
+    html,body { height:100%; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; background: linear-gradient(180deg, var(--bg), #050a16); color: var(--text); }
+    .container { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
+    .app { display:grid; grid-template-columns: 290px 1fr; gap:20px; }
+    .card { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid rgba(255,255,255,.06); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .card h2, .card h3 { margin:0 0 12px; }
+    .card .head { padding:16px 16px 0; }
+    .card .body { padding: 16px; }
+    .muted { color: var(--muted); }
+    .row { display:flex; gap:10px; align-items:center; }
+    input, select, textarea { width:100%; background:#0b1222; color:var(--text); border:1px solid rgba(255,255,255,.08); border-radius: 10px; padding:10px 12px; outline:none; }
+    textarea { resize: vertical; min-height: 70px; }
+    input::placeholder, textarea::placeholder { color:#7f8aa0; }
+    .btn { cursor:pointer; background: var(--accent); color:white; border:none; border-radius: 10px; padding:10px 14px; font-weight:600; }
+    .btn.ghost { background: transparent; border:1px solid rgba(255,255,255,.12); color: var(--text); }
+    .btn.warn { background: var(--warn); }
+    .btn.ok { background: var(--ok); }
+    .btn.danger { background: var(--danger); }
+    .list { list-style:none; margin:0; padding:0; }
+    .subject { display:flex; gap:10px; align-items: flex-start; padding:10px 12px; border-radius: 10px; cursor:pointer; border:1px solid transparent; }
+    .subject:hover { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.08); }
+    .subject.active { background: rgba(79,140,255,.1); border-color: rgba(79,140,255,.35); }
+    .subject small { color: var(--muted); }
+    .pill { font-size: 12px; padding:2px 8px; border-radius: 999px; background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); }
+    .items { display:grid; gap:12px; }
+    .item { display:flex; gap:12px; align-items:flex-start; padding:12px; border:1px solid rgba(255,255,255,.08); border-radius: 12px; background: rgba(255,255,255,.03); }
+    .item.clickable { cursor: pointer; }
+    .item.clickable:hover { background: rgba(79,140,255,.08); border-color: rgba(79,140,255,.35); }
+    .item h4 { margin:0 0 6px; }
+    .item a { color: var(--accent); text-decoration: none; }
+    .toolbar { display:flex; gap:8px; flex-wrap: wrap; }
+    .split { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .sep { height:1px; background: rgba(255,255,255,.08); margin: 12px 0; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; color: var(--muted); }
+    .badge { font-size: 12px; color: #c4d1ff; opacity:.9 }
+    .footer { display:flex; gap:8px; align-items:center; justify-content: space-between; margin-top: 10px; }
+    
+    @media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
+    /* Tiny test badge */
+    #test-badge { position: fixed; right: 12px; bottom: 12px; font-size:12px; background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); padding:6px 10px; border-radius:10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header style="margin:0 0 16px 0; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <h1 style="margin:0">📚 Trình quản lý link tài liệu</h1>
+      <span class="pill">Lưu trong trình duyệt (LocalStorage)</span>
+      <span class="kbd">Mẹo: Nhấn <b>N</b> để thêm môn, <b>L</b> để thêm link</span>
+    </header>
+
+    <div class="app">
+      <!-- Sidebar: Subjects -->
+      <section class="card">
+        <div class="head">
+          <h2>Môn học</h2>
+          <div class="row">
+            <input id="search" placeholder="Tìm theo tên môn, GV… (gõ để lọc)" />
+          </div>
+        </div>
+        <div class="body">
+          <ul id="subjects" class="list"></ul>
+          <div class="sep"></div>
+          <div class="row">
+            <input id="newSubjectName" placeholder="Tên môn mới (ví dụ: JPM501...)" />
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <input id="newSubjectOwner" placeholder="Giảng viên / ghi chú (tùy chọn)" />
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn ok" id="addSubjectBtn">+ Thêm môn</button>
+            <button class="btn ghost" id="renameSubjectBtn">Đổi tên</button>
+            <button class="btn danger" id="deleteSubjectBtn">Xóa môn</button>
+          </div>
+          <div class="sep"></div>
+          <div class="toolbar">
+            <button class="btn ghost" id="exportBtn">⬇️ Xuất JSON</button>
+            <label class="btn ghost" for="importInput">⬆️ Nhập JSON</label>
+            <input id="importInput" type="file" accept="application/json" style="display:none" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Main: Items in subject -->
+      <section class="card">
+        <div class="head">
+          <h2 id="subjectTitle">Chọn một môn ở bên trái</h2>
+          <p id="subjectMeta" class="muted" style="margin:0"></p>
+        </div>
+        <div class="body">
+          <div id="addItemForm">
+            <h3>Thêm link / nội dung</h3>
+            <div class="split">
+              <input id="itemTitle" placeholder="Tiêu đề (ví dụ: Link doc dịch slide)" />
+              <select id="itemType">
+                <option value="link">Link</option>
+                <option value="tài liệu">Tài liệu</option>
+                <option value="video">Video</option>
+                <option value="ghi chú">Ghi chú</option>
+                <option value="khác">Khác</option>
+              </select>
+            </div>
+            <div class="row" style="margin-top:8px;">
+              <input id="itemUrl" placeholder="URL (bắt buộc, dán link web khác)" />
+            </div>
+            <div class="row" style="margin-top:8px;">
+              <textarea id="itemNotes" placeholder="Mô tả / nội dung…"></textarea>
+            </div>
+            <div class="row" style="margin-top:8px;">
+              <button class="btn" id="addItemBtn">+ Thêm</button>
+              <button class="btn ghost" id="clearFormBtn">Xóa form</button>
+            </div>
+            <div class="sep"></div>
+          </div>
+
+          <div class="toolbar" style="justify-content: space-between; margin-bottom:8px;">
+            <div class="row" style="flex:1">
+              <input id="itemSearch" placeholder="Lọc trong môn này (tiêu đề, loại, ghi chú)" />
+            </div>
+            <div class="row">
+              <select id="sortSelect">
+                <option value="newest">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+                <option value="title">Theo A→Z</option>
+                <option value="type">Theo loại</option>
+              </select>
+              <button class="btn ghost" id="clearSubjectBtn">Xóa tất cả mục</button>
+            </div>
+          </div>
+
+          <div id="items" class="items"></div>
+
+          <div class="sep"></div>
+          
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="test-badge" class="muted">Đang chạy kiểm thử…</div>
+
+  <script>
+    // ======= Utilities =======
+    const $ = (sel)=>document.querySelector(sel);
+    const $$ = (sel)=>Array.from(document.querySelectorAll(sel));
+    const uid = ()=>Math.random().toString(36).slice(2,9);
+    const now = ()=>new Date().toISOString();
+
+    const STORE_KEY = 'courseLinks.v1';
+
+    const defaultData = {
+      subjects: [
+        { id: uid(), name: 'JPM501_Giáo án - cô Trinh', owner: 'Cô Trinh', items: [
+          { id: uid(), title: 'Link doc dịch slide', type: 'link', url: '', notes: 'Đặt link Google Docs/Drive tại đây', createdAt: now() },
+          { id: uid(), title: 'Link câu hỏi', type: 'link', url: '', notes: 'Danh sách câu hỏi ôn tập', createdAt: now() }
+        ], createdAt: now(), updatedAt: now() },
+        { id: uid(), name: 'JDC501_CTrinhDaoTao - Vũ Thúy', owner: 'Vũ Thúy', items: [], createdAt: now(), updatedAt: now() },
+        { id: uid(), name: 'JLR302_PP luận - Khánh', owner: 'Khánh', items: [], createdAt: now(), updatedAt: now() },
+        { id: uid(), name: 'Luận án tốt nghiệp', owner: '', items: [], createdAt: now(), updatedAt: now() },
+        { id: uid(), name: 'EXE201', owner: '', items: [], createdAt: now(), updatedAt: now() }
+      ],
+      selectedId: null
+    };
+
+    const store = {
+      load(){
+        try { return JSON.parse(localStorage.getItem(STORE_KEY)) || defaultData; }
+        catch(e){ return defaultData; }
+      },
+      save(data){ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
+    };
+
+    let state = store.load();
+    if(!state.selectedId && state.subjects[0]) state.selectedId = state.subjects[0].id;
+
+    // ======= Render =======
+    function renderSubjects(){
+      const q = ($('#search')?.value || '').trim().toLowerCase();
+      const wrap = $('#subjects');
+      wrap.innerHTML = '';
+      state.subjects
+        .filter(s => !q || s.name.toLowerCase().includes(q) || (s.owner||'').toLowerCase().includes(q))
+        .forEach(s => {
+          const li = document.createElement('li');
+          li.className = 'subject' + (s.id===state.selectedId?' active':'');
+          li.innerHTML = `
+            <div style="flex:1">
+              <div style="font-weight:600">${escapeHtml(s.name)}</div>
+              <small>${escapeHtml(s.owner||'')}</small>
+            </div>
+            <span class="pill">${s.items.length}</span>
+          `;
+          li.addEventListener('click', ()=>{ state.selectedId = s.id; store.save(state); renderAll(); });
+          wrap.appendChild(li);
+        });
+    }
+
+    function renderMain(){
+      const s = currentSubject();
+      if(!s){
+        $('#subjectTitle').textContent = 'Chọn một môn ở bên trái';
+        $('#subjectMeta').textContent = '';
+        $('#items').innerHTML = '';
+        return;
+      }
+      $('#subjectTitle').textContent = s.name;
+      $('#subjectMeta').textContent = s.owner ? `Giảng viên/Ghi chú: ${s.owner}` : '';
+
+      const iq = ($('#itemSearch')?.value || '').trim().toLowerCase();
+      const sort = $('#sortSelect')?.value || 'newest';
+      let arr = [...s.items];
+      if(iq){
+        arr = arr.filter(it =>
+          (it.title||'').toLowerCase().includes(iq) ||
+          (it.type||'').toLowerCase().includes(iq) ||
+          (it.notes||'').toLowerCase().includes(iq)
+        );
+      }
+      if(sort==='newest') arr.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+      if(sort==='oldest') arr.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+      if(sort==='title') arr.sort((a,b)=> (a.title||'').localeCompare(b.title||''));
+      if(sort==='type') arr.sort((a,b)=> (a.type||'').localeCompare(b.type||''));
+
+      const wrap = $('#items');
+      wrap.innerHTML = '';
+      if(arr.length===0){
+        wrap.innerHTML = '<p class="muted">Chưa có mục nào. Thêm mục mới ở trên nhé.</p>';
+        return;
+      }
+      arr.forEach(it => {
+        const div = document.createElement('div');
+        div.className = 'item' + (it.url ? ' clickable' : '');
+        const host = it.url ? hostnameOf(it.url) : '';
+        const fav = it.url ? `<img src="https://www.google.com/s2/favicons?domain=${escapeAttr(host)}&sz=32" width="16" height="16" style="vertical-align:-3px;margin-right:6px" />` : '';
+        const linkBtn = it.url ? `<a href="${escapeAttr(it.url)}" target="_blank" rel="noopener">Mở link ↗</a>` : '';
+        div.innerHTML = `
+          <div style="flex:1">
+            <h4>${fav}${it.url ? `<a href="${escapeAttr(it.url)}" target="_blank" rel="noopener">${escapeHtml(it.title||host||'(không tiêu đề)')}</a>` : escapeHtml(it.title||'(không tiêu đề)')} <span class="badge">• ${escapeHtml(it.type||'')}</span></h4>
+            ${host ? `<small class="muted">${escapeHtml(host)}</small>`:''}
+            ${it.notes ? `<div class="muted" style="white-space: pre-wrap">${escapeHtml(it.notes)}</div>` : ''}
+            <div class="toolbar" style="margin-top:8px">
+              ${linkBtn}
+              <button class="btn ghost" data-act="edit">Sửa</button>
+              <button class="btn danger" data-act="del">Xóa</button>
+            </div>
+          </div>
+        `;
+        // Open on single click anywhere on the card, except when clicking controls or selecting text
+        if(it.url){
+          div.addEventListener('click', (e)=>{
+            const isCtrl = e.ctrlKey || e.metaKey;
+            const isOnControl = e.target.closest('button, a, input, textarea, select');
+            const hasSelection = window.getSelection && window.getSelection().toString().length > 0;
+            if(isOnControl || hasSelection) return;
+            window.open(it.url, isCtrl ? '_blank' : '_blank', 'noopener');
+          });
+          // Keep double-click fallback
+          div.addEventListener('dblclick', ()=> window.open(it.url, '_blank', 'noopener'));
+        }
+        div.querySelector('[data-act="edit"]').onclick = (ev)=>{ ev.stopPropagation(); editItem(it.id); };
+        
+        div.querySelector('[data-act="del"]').onclick = (ev)=>{ ev.stopPropagation(); deleteItem(it.id); };
+        wrap.appendChild(div);
+      });
+    }
+
+    function renderAll(){ renderSubjects(); renderMain(); }
+
+    function currentSubject(){ return state.subjects.find(s=>s.id===state.selectedId) || null; }
+
+    // ======= Actions =======
+    $('#addSubjectBtn').onclick = ()=>{
+      const name = $('#newSubjectName').value.trim();
+      const owner = $('#newSubjectOwner').value.trim();
+      if(!name){ alert('Nhập tên môn.'); return; }
+      state.subjects.unshift({ id: uid(), name, owner, items: [], createdAt: now(), updatedAt: now() });
+      state.selectedId = state.subjects[0].id;
+      $('#newSubjectName').value = '';
+      $('#newSubjectOwner').value = '';
+      store.save(state); renderAll();
+    };
+
+    $('#renameSubjectBtn').onclick = ()=>{
+      const s = currentSubject(); if(!s){ alert('Chưa chọn môn.'); return; }
+      const name = prompt('Tên mới cho môn:', s.name); if(!name) return;
+      s.name = name; s.updatedAt = now(); store.save(state); renderAll();
+    };
+
+    $('#deleteSubjectBtn').onclick = ()=>{
+      const s = currentSubject(); if(!s){ alert('Chưa chọn môn.'); return; }
+      if(!confirm(`Xóa môn "${s.name}"?`)) return;
+      state.subjects = state.subjects.filter(x=>x.id!==s.id);
+      state.selectedId = state.subjects[0]?.id || null;
+      store.save(state); renderAll();
+    };
+
+    $('#addItemBtn').onclick = ()=>{
+      const s = currentSubject(); if(!s){ alert('Chưa chọn môn.'); return; }
+      const titleInput = $('#itemTitle').value.trim();
+      const type = $('#itemType').value;
+      const urlRaw = $('#itemUrl').value.trim();
+      const notes = $('#itemNotes').value.trim();
+      if(!urlRaw){ alert('Vì mục là đường link nên cần nhập URL.'); return; }
+      const url = normalizeUrl(urlRaw);
+      const title = titleInput || url;
+      s.items.unshift({ id: uid(), title, type, url, notes, createdAt: now() });
+      s.updatedAt = now();
+      clearForm(); store.save(state); renderMain();
+    };
+
+    $('#clearFormBtn').onclick = clearForm;
+    function clearForm(){ $('#itemTitle').value=''; $('#itemUrl').value=''; $('#itemNotes').value=''; $('#itemType').value='link'; }
+
+    function editItem(id){
+      const s = currentSubject(); const it = s.items.find(x=>x.id===id); if(!it) return;
+      const title = prompt('Tiêu đề', it.title || ''); if(title===null) return; it.title = title;
+      const type = prompt('Loại (link/tài liệu/video/ghi chú/khác)', it.type || ''); if(type===null) return; it.type = type;
+      let url = prompt('URL (bắt buộc, dán link web khác)', it.url || ''); if(url===null) return;
+      url = url.trim(); if(!url){ alert('URL là bắt buộc.'); return; }
+      it.url = normalizeUrl(url);
+      const notes = prompt('Ghi chú', it.notes || ''); if(notes===null) return; it.notes = notes;
+      s.updatedAt = now(); store.save(state); renderMain();
+    }
+
+    
+    function deleteItem(id){
+      const s = currentSubject(); if(!s) return;
+      if(!confirm('Xóa mục này?')) return;
+      s.items = s.items.filter(x=>x.id!==id); s.updatedAt = now(); store.save(state); renderMain();
+    }
+
+    $('#clearSubjectBtn').onclick = ()=>{
+      const s = currentSubject(); if(!s){ alert('Chưa chọn môn.'); return; }
+      if(!confirm(`Xóa tất cả mục trong "${s.name}"?`)) return;
+      s.items = []; s.updatedAt = now(); store.save(state); renderMain();
+    };
+
+    $('#exportBtn').onclick = ()=>{
+      const dataStr = JSON.stringify(state, null, 2);
+      const blob = new Blob([dataStr], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'course-links.json'; a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    $('#importInput').addEventListener('change', (e)=>{
+      const file = e.target.files[0]; if(!file) return;
+      const fr = new FileReader();
+      fr.onload = ()=>{
+        try{
+          const data = JSON.parse(fr.result);
+          if(!data.subjects) throw new Error('File không đúng định dạng.');
+          state = data; store.save(state); renderAll(); alert('Nhập dữ liệu thành công!');
+        }catch(err){ alert('Lỗi đọc file: '+err.message); }
+      };
+      fr.readAsText(file);
+    });
+
+    
+
+    // Live filters
+    $('#search').addEventListener('input', renderSubjects);
+    $('#itemSearch').addEventListener('input', renderMain);
+    $('#sortSelect').addEventListener('change', renderMain);
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e)=>{
+      if(e.target.matches('input, textarea')) return; // ignore when typing
+      if(e.key==='n' || e.key==='N'){ $('#newSubjectName').focus(); }
+      if(e.key==='l' || e.key==='L'){ $('#itemTitle').focus(); }
+    });
+
+    // ======= Helpers =======
+    function escapeHtml(str=''){
+      // escape &, <, >, ", '
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    function escapeAttr(str=''){
+      // For attribute values inside double quotes, escape & and "
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;');
+    }
+    function normalizeUrl(u=''){
+      try{
+        const hasScheme = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//.test(u);
+        const url = new URL(hasScheme ? u : 'https://' + u);
+        return url.toString();
+      }catch(e){
+        return u;
+      }
+    }
+    function hostnameOf(u=''){
+      try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return ''; }
+    }
+
+    // ======= Tiny Test Suite =======
+    (function runTests(){
+      const results = [];
+      const expect = (name, cond) => { results.push({name, pass: !!cond}); if(!cond) console.error('❌ Test failed:', name); };
+
+      // escapeHtml tests
+      expect('escapeHtml &', escapeHtml('&') === '&amp;');
+      expect('escapeHtml < >', escapeHtml('<>') === '&lt;&gt;');
+      expect('escapeHtml "', escapeHtml('"') === '&quot;');
+      expect("escapeHtml '", escapeHtml("'") === '&#39;');
+      expect('escapeHtml mix', escapeHtml('<a href="x">O\'R</a> &') === '&lt;a href=&quot;x&quot;&gt;O&#39;R&lt;/a&gt; &amp;');
+
+      // escapeAttr tests
+      expect('escapeAttr quotes', escapeAttr('say "hi"') === 'say &quot;hi&quot;');
+      expect('escapeAttr ampersand', escapeAttr('a&b') === 'a&amp;b');
+
+      // normalizeUrl tests
+      expect('normalizeUrl adds https', normalizeUrl('example.com').startsWith('https://'));
+      expect('normalizeUrl keeps scheme', normalizeUrl('http://foo.com').startsWith('http://'));
+
+      // hostnameOf tests
+      expect('hostnameOf strips www', hostnameOf('https://www.example.com/a') === 'example.com');
+
+      const passed = results.filter(r=>r.pass).length;
+      const badge = document.getElementById('test-badge');
+      if(passed === results.length){
+        badge.textContent = `✅ ${passed}/${results.length} kiểm thử passed`;
+        badge.style.borderColor = 'rgba(34,197,94,.6)';
+      } else {
+        badge.textContent = `❌ ${passed}/${results.length} kiểm thử passed - xem console để biết thêm`;
+        badge.style.borderColor = 'rgba(239,68,68,.6)';
+      }
+    })();
+
+    // Init
+    renderAll();
+  </script>
+</body>
+</html>
